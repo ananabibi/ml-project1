@@ -1,0 +1,10 @@
+name: mlp1
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - matplotlib
+  - numpy
+  - python=3.11
+  - seaborn
+prefix: /opt/anaconda3/envs/mlp1
