@@ -17,6 +17,34 @@ IMPORTANT: these functions expect the RAW codes. Run apply_special_functions
 before the generic ValueMapping step (e.g. "888=0"), and skip these columns
 in that step, otherwise codes like 888 are already replaced and the decoding
 is wrong.
+
+How to use it (from the project root, e.g. in projet.ipynb):
+
+    from src.helpers import load_csv_data
+    from src.special_function import (
+        read_column_names, read_flagged_columns, special_columns,
+        apply_special_functions,
+    )
+
+    x_train, x_test, y_train, train_ids, test_ids = load_csv_data("data")
+    names = read_column_names("data/x_train.csv")
+
+    # Optional sanity check: every flagged column should have a decoder
+    missing = set(read_flagged_columns("data_columns.csv")) - set(special_columns())
+    print("Flagged columns without a decoder:", missing)
+
+    # Decode the special columns (train and test with the same function)
+    x_train, train_names = apply_special_functions(x_train, names)
+    x_test, test_names = apply_special_functions(x_test, names)
+
+    # Then run the generic ValueMapping cleaning, skipping special_columns()
+
+A single column can also be decoded on its own, e.g.
+    weight_kg = weight_to_kg(x_train[:, names.index("WEIGHT2")])
+
+To support a new column: add its name to the right list in SPECIAL_FUNCTIONS,
+or write a new decoding function (raw 1D column -> decoded column) and add it
+there as a new key.
 """
 
 import csv
@@ -49,9 +77,13 @@ def _decode_prefixed(col, unit_factors, zero_codes=(), nan_codes=(777, 999)):
             not described by the arguments (e.g. 555 when it is not a zero
             code) ends up as NaN.
     """
+    # Work in float so NaN can be stored; start with everything unknown (NaN)
+    # and only fill the entries we know how to decode
     col = np.asarray(col, dtype=float)
     out = np.full(col.shape, np.nan)
 
+    # Split the code: hundreds digit = unit, last two digits = count
+    # (e.g. 214 -> prefix 2, count 14). NaN inputs stay NaN.
     prefix = col // 100
     count = col % 100
     for digit, factor in unit_factors.items():
@@ -60,6 +92,8 @@ def _decode_prefixed(col, unit_factors, zero_codes=(), nan_codes=(777, 999)):
         mask = (prefix == digit) & (count > 0)
         out[mask] = count[mask] * factor
 
+    # Special codes are applied last so they override the unit decoding above
+    # (e.g. 888 would otherwise be read as prefix 8, count 88)
     out[np.isin(col, zero_codes)] = 0.0
     out[np.isin(col, nan_codes)] = np.nan
     return out
@@ -77,6 +111,8 @@ def _decode_hours_minutes(col, nan_codes=(777, 999)):
     Returns:
         out (np.array): duration in minutes, shape (N,)
     """
+    # H:MM is stored as a plain number: hundreds = hours, last two digits =
+    # minutes (130 -> 1 h and 30 min). NaN inputs stay NaN.
     col = np.asarray(col, dtype=float)
     hours = col // 100
     minutes = col % 100
@@ -103,12 +139,16 @@ def weight_to_kg(col):
     Returns:
         out (np.array): weight in kg, shape (N,)
     """
+    # Everything not matched below (7777, 9999, NaN, out of range) stays NaN
     col = np.asarray(col, dtype=float)
     out = np.full(col.shape, np.nan)
 
+    # Answers given in pounds: convert with 1 lb = 0.45359237 kg
     pounds = (col >= 50) & (col < 1000)
     out[pounds] = col[pounds] * 0.45359237
 
+    # Answers given in kg: remove the 9000 offset (9070 -> 70 kg).
+    # 9999 (refused) is excluded by the strict upper bound.
     kilos = (col > 9000) & (col < 9999)
     out[kilos] = col[kilos] - 9000
     return out
@@ -125,15 +165,19 @@ def height_to_cm(col):
     Returns:
         out (np.array): height in cm, shape (N,)
     """
+    # Everything not matched below (7777, 9999, NaN, invalid codes) stays NaN
     col = np.asarray(col, dtype=float)
     out = np.full(col.shape, np.nan)
 
+    # Answers given in feet/inches: hundreds digit = feet, last two = inches.
     # The inches part must be < 12, otherwise the code is invalid
     imperial = (col >= 200) & (col < 1000) & (col % 100 < 12)
     feet = col[imperial] // 100
     inches = col[imperial] % 100
+    # Total inches, then 1 in = 2.54 cm (507 -> 67 in -> 170.18 cm)
     out[imperial] = (feet * 12 + inches) * 2.54
 
+    # Answers given in cm: remove the 9000 offset (9175 -> 175 cm)
     metric = (col > 9000) & (col < 9999)
     out[metric] = col[metric] - 9000
     return out
@@ -150,6 +194,7 @@ def days_per_month(col):
     Returns:
         out (np.array): number of days over 30 days, between 0 and 30
     """
+    # Days per week are scaled by 30/7 to be comparable with days per 30 days
     return _decode_prefixed(col, {1: 30 / 7, 2: 1.0}, zero_codes=(888,))
 
 
@@ -165,6 +210,7 @@ def times_per_day(col):
     Returns:
         out (np.array): frequency in times per day, shape (N,)
     """
+    # Per week -> divide by 7, per month -> divide by 30 (approximation)
     return _decode_prefixed(
         col, {1: 1.0, 2: 1 / 7, 3: 1 / 30}, zero_codes=(300, 555)
     )
@@ -181,6 +227,7 @@ def times_per_week(col):
     Returns:
         out (np.array): frequency in times per week, shape (N,)
     """
+    # Per month -> multiply by 7/30 to get times per week
     return _decode_prefixed(col, {1: 1.0, 2: 7 / 30}, zero_codes=(888,))
 
 
@@ -195,6 +242,8 @@ def minutes(col):
     Returns:
         out (np.array): duration in minutes, shape (N,)
     """
+    # Thin wrapper so the column -> function table in SPECIAL_FUNCTIONS reads
+    # by meaning ("minutes") rather than by implementation
     return _decode_hours_minutes(col)
 
 
@@ -211,6 +260,7 @@ def times_per_year(col):
     Returns:
         out (np.array): frequency in times per year, shape (N,)
     """
+    # 555 is not listed in zero_codes, so _decode_prefixed leaves it as NaN
     return _decode_prefixed(
         col, {1: 365.0, 2: 52.0, 3: 12.0, 4: 1.0}, zero_codes=(888,)
     )
@@ -229,6 +279,8 @@ def duration_in_days(col):
     Returns:
         out (np.array): duration in days, shape (N,)
     """
+    # Weeks, months and years converted with 7, 30 and 365 days.
+    # To map 555 to a value later, pass it through zero_codes or set it after.
     return _decode_prefixed(col, {1: 1.0, 2: 7.0, 3: 30.0, 4: 365.0})
 
 
@@ -249,10 +301,15 @@ def multiple_choice_flags(col, n_choices=4):
             chosen, 0 if not, NaN if the question was not answered
     """
     col = np.asarray(col, dtype=float)
+    # One output column per option, NaN by default (= not answered)
     out = np.full((col.shape[0], n_choices), np.nan)
+    # Rows with a real answer start at 0 ("option not chosen") ...
     answered = ~np.isnan(col) & ~np.isin(col, (7, 9))
     out[answered] = 0.0
 
+    # ... then each digit of the code switches its option on (12 -> options
+    # 1 and 2 -> out[i, 0] = out[i, 1] = 1). Digits outside 1..n_choices
+    # are ignored.
     for i in np.where(answered)[0]:
         for digit in str(int(col[i])):
             k = int(digit) - 1
@@ -275,9 +332,12 @@ def met_value(col, max_met=12.8):
     Returns:
         out (np.array): MET value, shape (N,)
     """
+    # Copy so the original data matrix is never modified in place
     col = np.asarray(col, dtype=float).copy()
+    # If the column still has the implied decimal (max above 12.8), divide by 10
     if np.nanmax(col, initial=0) > max_met:
         col = col / 10
+    # Values outside the valid MET range are treated as missing
     col[(col < 0) | (col > max_met)] = np.nan
     return col
 
@@ -286,6 +346,9 @@ def met_value(col, max_met=12.8):
 # 3. Decoding function -> columns it applies to
 # ---------------------------------------------------------------------------
 
+# Table used by apply_special_functions: key = decoding function, value = names
+# of the columns (as in the csv header) decoded by that function.
+# Columns missing from the data are simply skipped.
 SPECIAL_FUNCTIONS = {
     weight_to_kg: ["WEIGHT2"],
     height_to_cm: ["HEIGHT3"],
@@ -302,6 +365,9 @@ SPECIAL_FUNCTIONS = {
 
 def special_columns():
     """
+    Lists the columns decoded in this file. Use it to skip them in the generic
+    ValueMapping cleaning step.
+
     Returns:
         names (list): every column handled by SPECIAL_FUNCTIONS
     """
@@ -324,8 +390,10 @@ def read_column_names(csv_path):
     Returns:
         names (list): column names
     """
+    # Only the first line is read, so this is fast even on the full dataset
     with open(csv_path, newline="") as f:
         header = next(csv.reader(f))
+    # header[0] is "Id", which load_csv_data removes from x
     return [name.strip() for name in header[1:]]
 
 
@@ -366,6 +434,7 @@ def apply_special_functions(x, column_names):
         new_names (list): names of the D' columns of x_new
     """
     # Decode every special column present in x
+    # (index: column name -> position in x; decoded: column name -> result)
     index = {name: j for j, name in enumerate(column_names)}
     decoded = {}
     for func, cols in SPECIAL_FUNCTIONS.items():
@@ -378,13 +447,18 @@ def apply_special_functions(x, column_names):
     new_names = []
     for j, name in enumerate(column_names):
         if name not in decoded:
+            # Normal column: copied unchanged (j : j + 1 keeps it 2D, (N, 1))
             new_cols.append(x[:, j : j + 1])
             new_names.append(name)
         elif decoded[name].ndim == 1:
+            # Decoded into one column: replaces the raw one, same name
             new_cols.append(decoded[name][:, None])
             new_names.append(name)
         else:
+            # Decoded into several columns (multiple_choice_flags): inserted
+            # at the same place, named NAME_1, NAME_2, ...
             new_cols.append(decoded[name])
             new_names += [f"{name}_{k + 1}" for k in range(decoded[name].shape[1])]
 
+    # Glue all the (N, k) blocks side by side into the final matrix
     return np.hstack(new_cols), new_names
