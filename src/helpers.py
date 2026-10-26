@@ -26,12 +26,13 @@ def load_csv_data(data_path, sub_sample=False):
         skip_header=1,
         dtype=int,
         usecols=1,
+        max_rows=100
     )
     x_train = np.genfromtxt(
-        os.path.join(data_path, "x_train.csv"), delimiter=",", skip_header=1
+        os.path.join(data_path, "x_train.csv"), delimiter=",", skip_header=1, max_rows=100
     )
     x_test = np.genfromtxt(
-        os.path.join(data_path, "x_test.csv"), delimiter=",", skip_header=1
+        os.path.join(data_path, "x_test.csv"), delimiter=",", skip_header=1, max_rows=100
     )
 
     train_ids = x_train[:, 0].astype(dtype=int)

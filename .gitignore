@@ -1,3 +1,6 @@
 data/x_train.csv
 data/x_test.csv
 data/
+__pycache__/
+*.pyc
+.DS_Store

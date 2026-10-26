@@ -358,7 +358,6 @@ SPECIAL_FUNCTIONS = {
     minutes: ["EXERHMM1", "EXERHMM2"],
     times_per_year: ["BLDSUGAR", "FEETCHK2"],
     duration_in_days: ["LONGWTCH"],
-    multiple_choice_flags: ["PCDMDECN"],
     met_value: ["METVL11_", "METVL21_"],
 }
 
