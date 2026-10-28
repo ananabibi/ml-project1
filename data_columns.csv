@@ -1,4 +1,4 @@
-NAME, ISComputed, ISCalculated, Min, Max, ValueMapping, Needs_special_functions 
+NAME, ISComputed, Categorical, Min, Max, ValueMapping, Needs_special_functions 
 GENHLTH,False,False,1,5,7=NaN;9=NaN, False
 PHYSHLTH,False,False,0,30,77=NaN;99=NaN;88=0,False
 MENTHLTH,False,False,0,30,77=NaN;99=NaN;88=0,False
@@ -31,8 +31,8 @@ VETERAN3,False,False,1,2,7=NaN;9=NaN,False
 EMPLOY1,False,True,1,8,9=NaN,False
 INCOME2,False,False,1,8,77=NaN;99=NaN,False
 INTERNET,False,False,1,2,7=NaN;9=NaN,False
-WEIGHT2,,,,,,True
-HEIGHT3,,,,,,True
+WEIGHT2,False,False,50,9999,,True
+HEIGHT3,False,False,200,9999,,True
 PREGNANT,False,True,1,2,7=NaN;9=NaN,False
 QLACTLM2,False,False,1,2,7=NaN;9=NaN,False
 USEEQUIP,False,False,1,2,7=NaN;9=NaN,False
@@ -148,7 +148,6 @@ PSATEST1,False,False,1,2,7=NaN;9=NaN,False
 PSATIME,False,False,1,5,7=NaN;9=NaN,False
 PCPSARS1,False,True,1,5,7=NaN;9=NaN,False
 PCPSADE1,False,True,1,4,9=NaN,False
-PCDMDECN,False,False,1,5,7=NaN;9=NaN,True
 SCNTMNY1,False,False,1,5,7=NaN;9=NaN;8=NaN,False
 SCNTMEL1,False,False,1,5,7=NaN;9=NaN;8=NaN,False
 SCNTPAID,False,True,1,4,7=NaN;9=NaN,False

@@ -30,18 +30,18 @@ def sigmoid(z):
     """
     Fonction d'activation sigmoïde qui transforme une valeur réelle en probabilité (entre 0 et 1).
     """
-    # Formule mathématique standard de la sigmoïde
+    
     return 1 / (1 + np.exp(-z))
 
 def compute_loss(y, y_pred, weights):
     """
     Calcule l'erreur (Binary Cross-Entropy Loss) pondérée.
     """
-    # Ajouter un tout petit nombre (epsilon) pour éviter de faire log(0) qui donne une erreur
+    # éviter erreur
     epsilon = 1e-15 
     y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
     
-    # Formule de la log-loss avec intégration des poids pour pénaliser plus fort les erreurs sur la classe minoritaire
+    # log-loss avec intégration des poids pour pénaliser plus fort les erreurs sur la classe minoritaire
     loss = -np.mean(weights * (y * np.log(y_pred) + (1 - y) * np.log(1 - y_pred)))
     return loss
 
@@ -49,35 +49,35 @@ def logistic_regression_train(X, y, lr=0.01, epochs=1000, minority_weight=2.0):
     """
     Entraîne le modèle avec une descente de gradient et des poids pour déséquilibres de classes.
     """
-    # Récupérer le nombre d'échantillons et de features
+    # nb échantillons et de features
     n_samples, n_features = X.shape
     
-    # Initialiser les poids (w) à zéro et le biais (b) à zéro
+    # Initialiser w et bias à zéro
     w = np.zeros(n_features)
     b = 0
 
-    # Créer un tableau de poids : si y=1 (patient malade), on applique le minority_weight, sinon 1.0
+    # tableau : si y=1 (patient malade), poids pondéré sinon 1.0
     sample_weights = np.where(y == 1, minority_weight, 1.0)
 
-    # Boucle d'entraînement (descente de gradient)
+    # gradient descent 
     for epoch in range(epochs):
-        # Calculer le modèle linéaire (w * x + b)
+        # (w * x + b)
         linear_model = np.dot(X, w) + b
         
-        # Transformer en probabilités avec la sigmoïde
+        # on obtient la prediction en proba
         y_pred = sigmoid(linear_model)
 
-        # Calculer l'erreur de prédiction
+        # erreur de prédiction
         error = y_pred - y
         
-        # Multiplier l'erreur par nos poids pour forcer l'algorithme à se concentrer sur les cas malades
+        # multiplier l'erreur par nos poids pour focus sur les cas malades
         weighted_error = error * sample_weights
         
-        # Calculer les gradients (dérivées) pour w et b
+        # Calculer les gradients pour w et b
         dw = (1 / n_samples) * np.dot(X.T, weighted_error)
         db = (1 / n_samples) * np.sum(weighted_error)
 
-        # Mettre à jour les poids (w) et le biais (b) en soustrayant le gradient multiplié par le learning rate (lr)
+        # maj
         w -= lr * dw
         b -= lr * db
 
@@ -87,7 +87,6 @@ def logistic_regression_predict(X, w, b, threshold=0.5):
     """
     Prédit les classes (0 ou 1) pour de nouvelles données X.
     """
-    # Appliquer le modèle avec les poids entraînés
     linear_model = np.dot(X, w) + b
     y_pred = sigmoid(linear_model)
     
