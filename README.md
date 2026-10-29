@@ -1,11 +1,34 @@
-# EPFL Machine Learning Course CS-433
-Machine Learning Course, Fall 2026
+# ML Project 1 – Heart disease prediction (EPFL CS-433, Fall 2026)
 
-The course website and syllabus is available here: https://www.epfl.ch/labs/mlo/machine-learning-cs-433/
+Binary classification of coronary heart disease / heart attack (MICHD) from the
+BRFSS 2015 health survey (328,135 training people, 321 survey columns).
+Metric: F1 score. Only NumPy (+ standard library) is used.
 
-This repository contains all lecture notes, labs and projects - resources, code templates and solutions.
-Organizational information is available at the course website [here](https://www.epfl.ch/labs/mlo/machine-learning-cs-433/).
+## Reproduce the submission
 
-Videos will be available after each lecture on [the mediaspace channel](https://mediaspace.epfl.ch/channel/CS-433+Machine+learning/55647), including also the previous year's 2024 and 2023 videos.
+1. Put `x_train.csv`, `y_train.csv`, `x_test.csv` in `data/`.
+2. From the repo root: `python run.py` (a few minutes, mostly spent parsing the csv files; writes `submission.csv`).
 
-Contact us if you have any questions, via the [discussion forum](https://edstem.org/eu/courses/3637/discussion) (for EPFL students), or email to the assistants or teachers. Please create issues and pull requests here using the menu above.
+## Files
+
+| File | Content |
+| --- | --- |
+| `run.py` | Full pipeline that reproduces our best submission |
+| `implementations.py` | The 6 required methods (GD, SGD, least squares, ridge, logistic, regularized logistic) |
+| `src/helpers.py` | Course helpers: `load_csv_data`, `create_csv_submission` |
+| `src/special_function.py` | Decoders for the 20 columns that pack a unit inside the code (e.g. `205` = 5 per week) |
+| `src/preprocess.py` | `fit_preprocess` / `transform`: column cleaning, value mapping, NaN filter, one-hot, log1p, imputation, standardization |
+| `src/models.py` | Class-weighted logistic regression (tested in CV, not used in the final model) |
+| `src/cross_validation.py` | K-fold cross-validation with F1; preprocessing, model and threshold fitted on training folds only |
+| `src/implementations.py` | Same as `implementations.py` (imported by the notebook) |
+| `data_columns.csv` | Our metadata per column: value mapping, valid range, categorical flag, special flag |
+| `projet.ipynb` | Exploration and first baseline experiments |
+| `report/report.pdf` | 2-page report |
+
+## Cross-validation
+
+`src/cross_validation.cross_validate` runs the whole pipeline 5 times
+(5-fold, seed 1). Inside each fold the preprocessing statistics (medians,
+mean, std, kept columns, categories), the weights and the decision threshold
+are learned on the 4 training folds and the F1 is measured once on the
+held-out fold. Results are in the report.
